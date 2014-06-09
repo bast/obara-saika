@@ -82,6 +82,9 @@ def find_component_to_lower(fun):
 
 def down(xf):
 
+    if sum(xf.q) == 0:
+        return [xf]
+
     fun = find_fun_to_lower(xf.q)
     component = find_component_to_lower([xf.q[fun*3], xf.q[fun*3 + 1], xf.q[fun*3 + 2]])
 
