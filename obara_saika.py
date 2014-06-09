@@ -6,7 +6,6 @@ import sys
 #-------------------------------------------------------------------------------
 
 class XF:
-
     def __init__(self,
                  scale=1,
                  prefactors=[],
@@ -16,71 +15,6 @@ class XF:
         self.prefactors = prefactors
         self.q = q
         self.order = order
-
-    def _human(self, x, y, z):
-        d = {0: 's',
-             1: 'p',
-             2: 'd',
-             3: 'f',
-             4: 'g',
-             5: 'h',
-             6: 'i',
-             7: 'j',
-             8: 'k',
-             9: 'l'}
-        l = x + y + z
-        if l == 0:
-           return 's'
-        if l > 0:
-            s = [d[l]]
-            s.append('_')
-            for i in range(x):
-                s.append('x')
-            for i in range(y):
-                s.append('y')
-            for i in range(z):
-                s.append('z')
-        return ''.join(s)
-
-    def output(self):
-        pre_d = {0: 'PA_x',
-                 1: 'PB_x',
-                 2: 'QC_x',
-                 3: 'QD_x',
-                 4: 'WP_x',
-                 5: 'WQ_x',
-                 6: 'PA_y',
-                 7: 'PB_y',
-                 8: 'QC_y',
-                 9: 'QD_y',
-                10: 'WP_y',
-                11: 'WQ_y',
-                12: 'PA_z',
-                13: 'PB_z',
-                14: 'QC_z',
-                15: 'QD_z',
-                16: 'WP_z',
-                17: 'WQ_z',
-                18: 'f1_bra',
-                19: 'f1_ket',
-                20: 'f2_bra',
-                21: 'f2_ket',
-                22: 'f3'}
-        s_pre = []
-        if self.prefactors != []:
-            s_pre.append('[')
-            for i, f in enumerate(self.prefactors):
-                if i > 0:
-                    s_pre.append(',')
-                s_pre.append('%s' % pre_d[f])
-            s_pre.append(']')
-        print('%50s %4i [%s,%s,%s,%s]_%i' % (''.join(s_pre),
-                                             self.scale,
-                                             self._human(self.q[0], self.q[ 1], self.q[ 2]),
-                                             self._human(self.q[3], self.q[ 4], self.q[ 5]),
-                                             self._human(self.q[6], self.q[ 7], self.q[ 8]),
-                                             self._human(self.q[9], self.q[10], self.q[11]),
-                                             self.order))
 
 #-------------------------------------------------------------------------------
 
@@ -338,7 +272,6 @@ def get_integral(za, zb, zc, zd, ra, rb, rc, rd, c):
         b = boys(i, t)*s
         for f in expansion:
             if f.order == i:
-              # f.output()
                 g = 1.0
                 for k in f.prefactors:
                     g *= prefac[k]
