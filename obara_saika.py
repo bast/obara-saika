@@ -80,7 +80,7 @@ def find_component_to_lower(fun):
 
 #-------------------------------------------------------------------------------
 
-def down(xf):
+def apply_os(xf):
 
     if sum(xf.q) == 0:
         return [xf]
@@ -174,7 +174,7 @@ def down(xf):
         if all(i == 0 for i in xf.q):
             xf_final.append([xf])
         else:
-            xf_final.append(down(xf))
+            xf_final.append(apply_os(xf))
 
     return flatten(xf_final)
 
@@ -269,7 +269,7 @@ def get_integral(za, zb, zc, zd, ra, rb, rc, rd, c):
     prefac.append(0.5/(z + n))
 
     fun = XF(q=c)
-    expansion = down(fun)
+    expansion = apply_os(fun)
     integral = 0.0
     for i in range(sum(c) + 1):
         b = boys(i, t)*s
