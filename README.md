@@ -2,7 +2,6 @@
 
 [![Build Status](https://travis-ci.org/rbast/obara-saika.svg?branch=master)](https://travis-ci.org/rbast/obara-saika/builds)
 
-
 Obara-Saika
 ===========
 
@@ -17,3 +16,5 @@ It may be useful for educational purposes or
 to generate and/or test a more efficient code.
 
 The computed integrals are not normalized.
+
+Licensed under LGPLv3.
