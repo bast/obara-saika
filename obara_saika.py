@@ -10,11 +10,13 @@ class X2:
                  scale=1,
                  prefactors=[],
                  q=[0,0,0,0,0,0],
-                 kind='S'):
+                 kind='S',
+                 order=0):
         self.scale = scale
         self.prefactors = prefactors
         self.q = q
         self.kind = kind
+        self.order = order
 
 #-------------------------------------------------------------------------------
 
@@ -209,15 +211,35 @@ def apply_os2(x, kind='S'):
     if component == 2:
         i1 = [ 4, 5][fun]
 
-    pre = []
-    pre.append(i1)
-    pre.append(6)
-    pre.append(7)
+    if kind == 'S':
+        pre = []
+        pre.append(i1)
+        pre.append(6)
+        pre.append(7)
 
     if kind == 'T':
+        pre = []
+        pre.append(i1)
+        pre.append(6)
+        pre.append(7)
         pre.append(8)
         i2 = [ 9, 10][fun]
         pre.append(i2)
+
+    if kind == 'N':
+        if component == 0:
+            i2 = 6
+        if component == 1:
+            i2 = 7
+        if component == 2:
+            i2 = 8
+        pre = []
+        pre.append(i1)
+        pre.append(i2)
+        pre.append(9)
+        pre.append(10)
+        pre.append(9)
+        pre.append(10)
 
     l = [0, 1]
     a = fun
@@ -226,37 +248,68 @@ def apply_os2(x, kind='S'):
 
     if kind == 'S':
         num_terms = 3
-    else:
+    elif kind == 'T':
         num_terms = 5
+    elif kind == 'N':
+        num_terms = 6
+    else:
+        sys.stderr.write('ERROR: unexpected kind\n')
 
     x_copy = []
     scale = x.scale
+    order = x.order # not used for S and T
     for term in range(num_terms):
         x_new = X2(scale=scale,
                    prefactors=x.prefactors[:],
                    q=x.q[:],
-                   kind=kind)
+                   kind=kind,
+                   order=order)
         x_copy.append(x_new)
 
-    for term in range(3):
-        x_copy[term].q[fun*3 + component] -= 1
+    if kind == 'N':
+        for term in [1, 3, 5]:
+            x_copy[term].order += 1
 
     if kind == 'T':
         x_copy[3].kind = 'S'
         x_copy[4].kind = 'S'
 
-    if kind == 'T':
-        # term 4 is just a copy
-        # term 5 is minus two
-        x_copy[4].q[fun*3 + component] -= 2
+    if kind == 'S':
+        x_copy[0].q[fun*3 + component] -= 1
+        x_copy[1].q[fun*3 + component] -= 1
+        x_copy[2].q[fun*3 + component] -= 1
+        x_copy[1].q[a*3 + component] -= 1
+        x_copy[2].q[b*3 + component] -= 1
 
-    x_copy[1].q[a*3 + component] -= 1
-    x_copy[2].q[b*3 + component] -= 1
+    if kind == 'T':
+        x_copy[0].q[fun*3 + component] -= 1
+        x_copy[1].q[fun*3 + component] -= 1
+        x_copy[2].q[fun*3 + component] -= 1
+        # term 4 (x_copy[3]) is just a copy
+        x_copy[4].q[fun*3 + component] -= 2
+        x_copy[1].q[a*3 + component] -= 1
+        x_copy[2].q[b*3 + component] -= 1
+
+    if kind == 'N':
+        x_copy[0].q[fun*3 + component] -= 1
+        x_copy[2].q[fun*3 + component] -= 1
+        x_copy[4].q[fun*3 + component] -= 1
+        x_copy[2].q[a*3 + component] -= 1
+        x_copy[4].q[b*3 + component] -= 1
+        x_copy[1].q = x_copy[0].q[:]
+        x_copy[3].q = x_copy[2].q[:]
+        x_copy[5].q = x_copy[4].q[:]
 
     n = []
     n.append(1)
+    if kind == 'N':
+        n.append(1)
     n.append(x.q[a*3 + component] - 1)
+    if kind == 'N':
+        n.append(x.q[a*3 + component] - 1)
     n.append(x.q[b*3 + component])
+    if kind == 'N':
+        n.append(x.q[b*3 + component])
 
     if kind == 'T':
         n.append(1)
@@ -511,3 +564,59 @@ def test_get_kinetic():
 
     integral = get_kinetic(za, zb, ra, rb, [2, 2, 2, 2, 2, 2])
     assert abs(integral - -7.40057384314e-05) < 1.0e-16
+
+#-------------------------------------------------------------------------------
+
+def get_nuclear(za, zb, ra, rb, rc, c):
+
+    z = za + zb
+    rp = get_bi_center(za, zb, ra, rb)
+    pc = (rp[0] - rc[0])**2 + (rp[1] - rc[1])**2 + (rp[2] - rc[2])**2
+
+    u = z*pc
+    aux = -2.0*(z/pi)**0.5*get_overlap(za, zb, ra, rb, [0, 0, 0, 0, 0, 0])
+
+    prefac = []
+    prefac.append(rp[0] - ra[0])
+    prefac.append(rp[0] - rb[0])
+    prefac.append(rp[1] - ra[1])
+    prefac.append(rp[1] - rb[1])
+    prefac.append(rp[2] - ra[2])
+    prefac.append(rp[2] - rb[2])
+    prefac.append(-rp[0] + rc[0])
+    prefac.append(-rp[1] + rc[1])
+    prefac.append(-rp[2] + rc[2])
+    prefac.append(0.5/z)
+    prefac.append(-0.5/z)
+
+    fun = X2(q=c)
+    expansion = apply_os2(fun, kind='N')
+    integral = 0.0
+    for f in expansion:
+        g = 1.0
+        for k in f.prefactors:
+            g *= prefac[k]
+        integral += float(f.scale)*aux*g*boys(f.order, u)
+    return integral
+
+#-------------------------------------------------------------------------------
+
+def test_get_nuclear():
+
+    za = 1.8
+    zb = 2.0
+    ra = [0.0, 0.0, 0.0]
+    rb = [0.5, 0.8, -0.2]
+    rc = [0.5, 0.8, 0.2]
+
+    integral = get_nuclear(za, zb, ra, rb, rc, [0, 0, 0, 0, 0, 0])
+    assert abs(integral - -0.49742209545104593) < 1.0e-16
+
+    integral = get_nuclear(za, zb, ra, rb, rc, [1, 0, 0, 0, 0, 0])
+    assert abs(integral - -0.15987439458254471) < 1.0e-16
+
+    integral = get_nuclear(za, zb, ra, rb, rc, [2, 2, 2, 0, 0, 0])
+    assert abs(integral - -0.003801373531942607) < 1.0e-16
+
+    integral = get_nuclear(za, zb, ra, rb, rc, [1, 1, 1, 1, 1, 1])
+    assert abs(integral - 8.8415484347060993e-5) < 1.0e-16
