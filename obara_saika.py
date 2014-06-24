@@ -5,6 +5,17 @@ import sys
 
 #-------------------------------------------------------------------------------
 
+class X2:
+    def __init__(self,
+                 scale=1,
+                 prefactors=[],
+                 q=[0,0,0,0,0,0]):
+        self.scale = scale
+        self.prefactors = prefactors
+        self.q = q
+
+#-------------------------------------------------------------------------------
+
 class X4:
     def __init__(self,
                  scale=1,
@@ -44,17 +55,17 @@ def flatten(l):
 
 #-------------------------------------------------------------------------------
 
-def find_fun_to_lower(q):
+def find_fun_to_lower(q, n):
 
     l = []
-    for i in range(4):
+    for i in range(n):
         l.append(q[i*3] + q[i*3 + 1] + q[i*3 + 2])
 
     # find function to lower
     # start with lowest angular momentum above s
     fun = -1
     kmax = max(l) + 1
-    for i in range(4):
+    for i in range(n):
         k = l[i]
         if k > 0:
             if k < kmax:
@@ -80,12 +91,12 @@ def find_component_to_lower(fun):
 
 #-------------------------------------------------------------------------------
 
-def apply_os(x4):
+def apply_os_coulomb(x4):
 
     if sum(x4.q) == 0:
         return [x4]
 
-    fun = find_fun_to_lower(x4.q)
+    fun = find_fun_to_lower(x4.q, 4)
     component = find_component_to_lower([x4.q[fun*3], x4.q[fun*3 + 1], x4.q[fun*3 + 2]])
 
     if component == 0:
@@ -174,9 +185,71 @@ def apply_os(x4):
         if all(i == 0 for i in x4.q):
             x4_final.append([x4])
         else:
-            x4_final.append(apply_os(x4))
+            x4_final.append(apply_os_coulomb(x4))
 
     return flatten(x4_final)
+
+#-------------------------------------------------------------------------------
+
+def apply_os_overlap(x):
+
+    if sum(x.q) == 0:
+        return [x]
+
+    fun = find_fun_to_lower(x.q, 2)
+    component = find_component_to_lower([x.q[fun*3], x.q[fun*3 + 1], x.q[fun*3 + 2]])
+
+    if component == 0:
+        i1 = [ 0, 1][fun]
+    if component == 1:
+        i1 = [ 2, 3][fun]
+    if component == 2:
+        i1 = [ 4, 5][fun]
+
+    pre = []
+    pre.append(i1)
+    pre.append(6)
+    pre.append(7)
+
+    l = [0, 1]
+    a = fun
+    l.remove(a)
+    b = l[0]
+
+    x_copy = []
+    scale = x.scale
+    for term in range(3):
+        x_new = X2(scale=scale,
+                   prefactors=x.prefactors[:],
+                   q=x.q[:])
+        x_copy.append(x_new)
+        x_copy[term].q[fun*3 + component] -= 1
+
+    x_copy[1].q[a*3 + component] -= 1
+    x_copy[2].q[b*3 + component] -= 1
+
+    n = []
+    n.append(1)
+    n.append(x.q[a*3 + component] - 1)
+    n.append(x.q[b*3 + component])
+
+    x_list = []
+    for term in range(3):
+        if n[term] > 0:
+            if all(i >= 0 for i in x_copy[term].q):
+                if n[term] > 1:
+                    x_copy[term].scale *= n[term]
+                x_copy[term].prefactors.append(pre[term])
+                x_list.append(x_copy[term])
+
+    x_final = []
+    for y in x_list:
+        if all(i == 0 for i in y.q):
+            x_final.append([y])
+        else:
+            x_final.append(apply_os_overlap(y))
+
+    return flatten(x_final)
 
 #-------------------------------------------------------------------------------
 
@@ -269,7 +342,7 @@ def get_coulomb(za, zb, zc, zd, ra, rb, rc, rd, c):
     prefac.append(0.5/(z + n))
 
     fun = X4(q=c)
-    expansion = apply_os(fun)
+    expansion = apply_os_coulomb(fun)
     integral = 0.0
     for i in range(sum(c) + 1):
         b = boys(i, t)*s
@@ -299,3 +372,55 @@ def test_get_coulomb():
     integral = get_coulomb(za, zb, zc, zd, ra, rb, rc, rd, [2, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0])
 
     assert abs(integral - ref) < 1.0e-16
+
+#-------------------------------------------------------------------------------
+
+def get_overlap(za, zb, ra, rb, c):
+
+    rp = get_bi_center(za, zb, ra, rb)
+
+    z = za + zb
+    e = za*zb/(za + zb)
+    f = (ra[0] - rb[0])**2 + (ra[1] - rb[1])**2 + (ra[2] - rb[2])**2
+    aux = exp(-e*f)*(pi/z)**1.5
+
+    prefac = []
+    prefac.append(rp[0] - ra[0])
+    prefac.append(rp[0] - rb[0])
+    prefac.append(rp[1] - ra[1])
+    prefac.append(rp[1] - rb[1])
+    prefac.append(rp[2] - ra[2])
+    prefac.append(rp[2] - rb[2])
+    prefac.append(0.5/z)
+    prefac.append(0.5/z)
+
+    fun = X2(q=c)
+    expansion = apply_os_overlap(fun)
+    integral = 0.0
+    for f in expansion:
+        g = 1.0
+        for k in f.prefactors:
+            g *= prefac[k]
+        integral += float(f.scale)*aux*g
+    return integral
+
+#-------------------------------------------------------------------------------
+
+def test_get_overlap():
+
+    za = 1.8
+    zb = 2.8
+    ra = [0.0, 0.0, 0.0]
+    rb = [0.5, 0.8, -0.2]
+
+    integral = get_overlap(za, zb, ra, rb, [0, 0, 0, 0, 0, 0])
+    assert abs(integral - 0.20373275913014607) < 1.0e-16
+
+    integral = get_overlap(za, zb, ra, rb, [1, 0, 0, 0, 0, 0])
+    assert abs(integral - 0.062005622343957505) < 1.0e-16
+
+    integral = get_overlap(za, zb, ra, rb, [1, 1, 0, 1, 1, 0])
+    assert abs(integral - -0.00043801221837779696) < 1.0e-16
+
+    integral = get_overlap(za, zb, ra, rb, [2, 1, 0, 1, 1, 0])
+    assert abs(integral - -0.0002385994651113168) < 1.0e-16
