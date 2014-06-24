@@ -9,10 +9,12 @@ class X2:
     def __init__(self,
                  scale=1,
                  prefactors=[],
-                 q=[0,0,0,0,0,0]):
+                 q=[0,0,0,0,0,0],
+                 kind='S'):
         self.scale = scale
         self.prefactors = prefactors
         self.q = q
+        self.kind = kind
 
 #-------------------------------------------------------------------------------
 
@@ -91,7 +93,7 @@ def find_component_to_lower(fun):
 
 #-------------------------------------------------------------------------------
 
-def apply_os_coulomb(x4):
+def apply_os4(x4):
 
     if sum(x4.q) == 0:
         return [x4]
@@ -185,15 +187,16 @@ def apply_os_coulomb(x4):
         if all(i == 0 for i in x4.q):
             x4_final.append([x4])
         else:
-            x4_final.append(apply_os_coulomb(x4))
+            x4_final.append(apply_os4(x4))
 
     return flatten(x4_final)
 
 #-------------------------------------------------------------------------------
 
-def apply_os_overlap(x):
+def apply_os2(x, kind='S'):
 
     if sum(x.q) == 0:
+        x.kind = kind
         return [x]
 
     fun = find_fun_to_lower(x.q, 2)
@@ -211,19 +214,41 @@ def apply_os_overlap(x):
     pre.append(6)
     pre.append(7)
 
+    if kind == 'T':
+        pre.append(8)
+        i2 = [ 9, 10][fun]
+        pre.append(i2)
+
     l = [0, 1]
     a = fun
     l.remove(a)
     b = l[0]
 
+    if kind == 'S':
+        num_terms = 3
+    else:
+        num_terms = 5
+
     x_copy = []
     scale = x.scale
-    for term in range(3):
+    for term in range(num_terms):
         x_new = X2(scale=scale,
                    prefactors=x.prefactors[:],
-                   q=x.q[:])
+                   q=x.q[:],
+                   kind=kind)
         x_copy.append(x_new)
+
+    for term in range(3):
         x_copy[term].q[fun*3 + component] -= 1
+
+    if kind == 'T':
+        x_copy[3].kind = 'S'
+        x_copy[4].kind = 'S'
+
+    if kind == 'T':
+        # term 4 is just a copy
+        # term 5 is minus two
+        x_copy[4].q[fun*3 + component] -= 2
 
     x_copy[1].q[a*3 + component] -= 1
     x_copy[2].q[b*3 + component] -= 1
@@ -233,8 +258,12 @@ def apply_os_overlap(x):
     n.append(x.q[a*3 + component] - 1)
     n.append(x.q[b*3 + component])
 
+    if kind == 'T':
+        n.append(1)
+        n.append(x.q[a*3 + component] - 1)
+
     x_list = []
-    for term in range(3):
+    for term in range(num_terms):
         if n[term] > 0:
             if all(i >= 0 for i in x_copy[term].q):
                 if n[term] > 1:
@@ -247,7 +276,7 @@ def apply_os_overlap(x):
         if all(i == 0 for i in y.q):
             x_final.append([y])
         else:
-            x_final.append(apply_os_overlap(y))
+            x_final.append(apply_os2(y, kind=y.kind))
 
     return flatten(x_final)
 
@@ -342,7 +371,7 @@ def get_coulomb(za, zb, zc, zd, ra, rb, rc, rd, c):
     prefac.append(0.5/(z + n))
 
     fun = X4(q=c)
-    expansion = apply_os_coulomb(fun)
+    expansion = apply_os4(fun)
     integral = 0.0
     for i in range(sum(c) + 1):
         b = boys(i, t)*s
@@ -395,7 +424,7 @@ def get_overlap(za, zb, ra, rb, c):
     prefac.append(0.5/z)
 
     fun = X2(q=c)
-    expansion = apply_os_overlap(fun)
+    expansion = apply_os2(fun)
     integral = 0.0
     for f in expansion:
         g = 1.0
@@ -424,3 +453,61 @@ def test_get_overlap():
 
     integral = get_overlap(za, zb, ra, rb, [2, 1, 0, 1, 1, 0])
     assert abs(integral - -0.0002385994651113168) < 1.0e-16
+
+#-------------------------------------------------------------------------------
+
+def get_kinetic(za, zb, ra, rb, c):
+
+    rp = get_bi_center(za, zb, ra, rb)
+
+    z = za + zb
+    e = za*zb/(za + zb)
+    ab = (ra[0] - rb[0])**2 + (ra[1] - rb[1])**2 + (ra[2] - rb[2])**2
+    aux = get_overlap(za, zb, ra, rb, [0, 0, 0, 0, 0, 0])
+
+    prefac = []
+    prefac.append(rp[0] - ra[0])
+    prefac.append(rp[0] - rb[0])
+    prefac.append(rp[1] - ra[1])
+    prefac.append(rp[1] - rb[1])
+    prefac.append(rp[2] - ra[2])
+    prefac.append(rp[2] - rb[2])
+    prefac.append(0.5/z)
+    prefac.append(0.5/z)
+    prefac.append(2.0*e)
+    prefac.append(-e/za)
+    prefac.append(-e/zb)
+
+    fun = X2(q=c)
+    expansion = apply_os2(fun, kind='T')
+    integral = 0.0
+    for f in expansion:
+        if f.kind == 'T':
+            g = e*(3.0 - 2.0*e*ab)
+            for k in f.prefactors:
+                g *= prefac[k]
+            integral += float(f.scale)*aux*g
+        if f.kind == 'S':
+            g = 1.0
+            for k in f.prefactors:
+                g *= prefac[k]
+            integral += float(f.scale)*aux*g
+    return integral
+
+#-------------------------------------------------------------------------------
+
+def test_get_kinetic():
+
+    za = 1.8
+    zb = 2.0
+    ra = [0.0, 0.0, 0.0]
+    rb = [0.5, 0.8, -0.2]
+
+    integral = get_kinetic(za, zb, ra, rb, [0, 0, 0, 0, 0, 0])
+    assert abs(integral - 0.3652714583525358) < 1.0e-16
+
+    integral = get_kinetic(za, zb, ra, rb, [1, 0, 0, 0, 0, 0])
+    assert abs(integral - 0.2514265587836556) < 1.0e-16
+
+    integral = get_kinetic(za, zb, ra, rb, [2, 2, 2, 2, 2, 2])
+    assert abs(integral - -7.40057384314e-05) < 1.0e-16
