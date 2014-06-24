@@ -5,7 +5,7 @@ import sys
 
 #-------------------------------------------------------------------------------
 
-class XF:
+class X4:
     def __init__(self,
                  scale=1,
                  prefactors=[],
@@ -80,13 +80,13 @@ def find_component_to_lower(fun):
 
 #-------------------------------------------------------------------------------
 
-def apply_os(xf):
+def apply_os(x4):
 
-    if sum(xf.q) == 0:
-        return [xf]
+    if sum(x4.q) == 0:
+        return [x4]
 
-    fun = find_fun_to_lower(xf.q)
-    component = find_component_to_lower([xf.q[fun*3], xf.q[fun*3 + 1], xf.q[fun*3 + 2]])
+    fun = find_fun_to_lower(x4.q)
+    component = find_component_to_lower([x4.q[fun*3], x4.q[fun*3 + 1], x4.q[fun*3 + 2]])
 
     if component == 0:
         i1 = [ 0, 1, 2, 3][fun]
@@ -129,54 +129,54 @@ def apply_os(xf):
        c = bra.pop()
        d = bra.pop()
 
-    xf_copy = []
-    scale = xf.scale
-    order = xf.order
+    x4_copy = []
+    scale = x4.scale
+    order = x4.order
     for term in range(8):
-        xf_new = XF(scale=scale,
-                    prefactors=xf.prefactors[:],
-                    q=xf.q[:],
+        x4_new = X4(scale=scale,
+                    prefactors=x4.prefactors[:],
+                    q=x4.q[:],
                     order=order)
-        xf_copy.append(xf_new)
-        xf_copy[term].q[fun*3 + component] -= 1
+        x4_copy.append(x4_new)
+        x4_copy[term].q[fun*3 + component] -= 1
 
     for term in [1, 3, 5, 6, 7]:
-        xf_copy[term].order += 1
+        x4_copy[term].order += 1
 
-    xf_copy[2].q[a*3 + component] -= 1
-    xf_copy[3].q[a*3 + component] -= 1
-    xf_copy[4].q[b*3 + component] -= 1
-    xf_copy[5].q[b*3 + component] -= 1
-    xf_copy[6].q[c*3 + component] -= 1
-    xf_copy[7].q[d*3 + component] -= 1
+    x4_copy[2].q[a*3 + component] -= 1
+    x4_copy[3].q[a*3 + component] -= 1
+    x4_copy[4].q[b*3 + component] -= 1
+    x4_copy[5].q[b*3 + component] -= 1
+    x4_copy[6].q[c*3 + component] -= 1
+    x4_copy[7].q[d*3 + component] -= 1
 
     n = []
     n.append(1)
     n.append(1)
-    n.append(xf.q[a*3 + component] - 1)
-    n.append(xf.q[a*3 + component] - 1)
-    n.append(xf.q[b*3 + component])
-    n.append(xf.q[b*3 + component])
-    n.append(xf.q[c*3 + component])
-    n.append(xf.q[d*3 + component])
+    n.append(x4.q[a*3 + component] - 1)
+    n.append(x4.q[a*3 + component] - 1)
+    n.append(x4.q[b*3 + component])
+    n.append(x4.q[b*3 + component])
+    n.append(x4.q[c*3 + component])
+    n.append(x4.q[d*3 + component])
 
-    xf_list = []
+    x4_list = []
     for term in range(8):
         if n[term] > 0:
-            if all(i >= 0 for i in xf_copy[term].q):
+            if all(i >= 0 for i in x4_copy[term].q):
                 if n[term] > 1:
-                    xf_copy[term].scale *= n[term]
-                xf_copy[term].prefactors.append(pre[term])
-                xf_list.append(xf_copy[term])
+                    x4_copy[term].scale *= n[term]
+                x4_copy[term].prefactors.append(pre[term])
+                x4_list.append(x4_copy[term])
 
-    xf_final = []
-    for xf in xf_list:
-        if all(i == 0 for i in xf.q):
-            xf_final.append([xf])
+    x4_final = []
+    for x4 in x4_list:
+        if all(i == 0 for i in x4.q):
+            x4_final.append([x4])
         else:
-            xf_final.append(apply_os(xf))
+            x4_final.append(apply_os(x4))
 
-    return flatten(xf_final)
+    return flatten(x4_final)
 
 #-------------------------------------------------------------------------------
 
@@ -231,7 +231,7 @@ def get_aux(za, zb, zc, zd, ra, rb, rc, rd):
 
 #-------------------------------------------------------------------------------
 
-def get_integral(za, zb, zc, zd, ra, rb, rc, rd, c):
+def get_coulomb(za, zb, zc, zd, ra, rb, rc, rd, c):
 
     rp = get_bi_center(za, zb, ra, rb)
     rq = get_bi_center(zc, zd, rc, rd)
@@ -268,7 +268,7 @@ def get_integral(za, zb, zc, zd, ra, rb, rc, rd, c):
     prefac.append(-0.5*rho/(n*n))
     prefac.append(0.5/(z + n))
 
-    fun = XF(q=c)
+    fun = X4(q=c)
     expansion = apply_os(fun)
     integral = 0.0
     for i in range(sum(c) + 1):
@@ -283,7 +283,7 @@ def get_integral(za, zb, zc, zd, ra, rb, rc, rd, c):
 
 #-------------------------------------------------------------------------------
 
-def test_get_integral():
+def test_get_coulomb():
 
     za = 1.1
     zb = 1.2
@@ -296,6 +296,6 @@ def test_get_integral():
     rd = [0.0, 0.0, 4.0]
 
     ref = 1.71817807954e-05
-    integral = get_integral(za, zb, zc, zd, ra, rb, rc, rd, [2, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0])
+    integral = get_coulomb(za, zb, zc, zd, ra, rb, rc, rd, [2, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0])
 
     assert abs(integral - ref) < 1.0e-16
