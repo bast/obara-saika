@@ -1,7 +1,6 @@
 [![Build Status](https://travis-ci.org/bast/obara-saika.svg?branch=master)](https://travis-ci.org/rbast/obara-saika/builds)
 
-Obara-Saika
-===========
+# Obara-Saika
 
 Obara-Saika integral code sandbox.
 
@@ -15,4 +14,4 @@ to generate and/or test a more efficient code.
 
 The computed integrals are not normalized.
 
-Licensed under LGPLv3.
+Licensed under [BSD-3](../master/LICENSE).
