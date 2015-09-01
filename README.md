@@ -1,6 +1,4 @@
-
-
-[![Build Status](https://travis-ci.org/rbast/obara-saika.svg?branch=master)](https://travis-ci.org/rbast/obara-saika/builds)
+[![Build Status](https://travis-ci.org/bast/obara-saika.svg?branch=master)](https://travis-ci.org/rbast/obara-saika/builds)
 
 Obara-Saika
 ===========
